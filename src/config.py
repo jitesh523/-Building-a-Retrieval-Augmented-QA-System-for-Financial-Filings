@@ -23,6 +23,9 @@ class Settings(BaseSettings):
     # Cohere
     cohere_api_key: str = ""
     
+    # Gemini
+    gemini_api_key: str = ""
+    
     # Embedding Configuration
     embedding_provider: Literal["openai", "cohere", "local"] = "openai"
     embedding_dimension: int = 1536
