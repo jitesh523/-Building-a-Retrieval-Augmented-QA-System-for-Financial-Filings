@@ -29,15 +29,14 @@ class AnswerGenerator:
         
         if provider == "gemini":
             try:
-                import google.generativeai as genai
+                from google import genai
                 key = api_key or os.getenv("GEMINI_API_KEY") or os.getenv("GOOGLE_API_KEY")
                 if not key:
                     raise ValueError("Gemini API key not found")
-                genai.configure(api_key=key)
-                self.model = genai.GenerativeModel(model or "gemini-1.5-flash")
-                self.client = genai
+                self.client = genai.Client(api_key=key)
+                self.model = model or "gemini-2.5-flash"
             except ImportError:
-                raise ImportError("google-generativeai package not installed")
+                raise ImportError("google-genai package not installed. Run: pip install google-genai")
         elif provider == "openai":
             try:
                 from openai import OpenAI
@@ -135,7 +134,10 @@ Question: {query}
 Please provide a clear, accurate answer based on the context above."""
 
         try:
-            response = self.model.generate_content(prompt)
+            response = self.client.models.generate_content(
+                model=self.model,
+                contents=prompt
+            )
             return response.text
         except Exception as e:
             return f"Error generating answer: {str(e)}"

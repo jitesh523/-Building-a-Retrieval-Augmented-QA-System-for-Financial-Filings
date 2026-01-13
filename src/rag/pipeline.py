@@ -21,8 +21,6 @@ class RAGResponse:
 class RAGPipeline:
     """Main RAG pipeline for question answering."""
     
-    # Gemini API key
-    GEMINI_API_KEY = "AIzaSyC7ASqhqjD0mTACDiYq2N5C7qdIhB-P_M4"
     
     def __init__(self, 
                  embedding_provider: str = "local",
@@ -49,9 +47,13 @@ class RAGPipeline:
                 top_k=top_k
             )
         
+        # Get API key from environment
+        import os
+        gemini_key = os.getenv("GEMINI_API_KEY")
+        
         self.generator = AnswerGenerator(
             provider=llm_provider,
-            api_key=self.GEMINI_API_KEY if llm_provider == "gemini" else None
+            api_key=gemini_key if llm_provider == "gemini" else None
         )
         self.top_k = top_k
     

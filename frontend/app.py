@@ -55,7 +55,7 @@ def get_pipeline():
     """Initialize and cache the RAG pipeline."""
     return RAGPipeline(
         embedding_provider="local",
-        llm_provider="local",
+        llm_provider="gemini",
         top_k=10,
         use_hybrid=True
     )
