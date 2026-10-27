@@ -24,7 +24,15 @@ class FixedSizeChunker:
         Args:
             chunk_size: Number of tokens per chunk
             overlap: Number of overlapping tokens between chunks
+
+        Raises:
+            ValueError: If chunk_size is not positive or overlap is outside
+                the range 0 <= overlap < chunk_size.
         """
+        if chunk_size <= 0:
+            raise ValueError("chunk_size must be greater than zero")
+        if overlap < 0 or overlap >= chunk_size:
+            raise ValueError("overlap must satisfy 0 <= overlap < chunk_size")
         self.chunk_size = chunk_size
         self.overlap = overlap
     
