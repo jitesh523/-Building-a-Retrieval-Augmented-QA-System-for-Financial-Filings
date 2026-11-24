@@ -93,6 +93,8 @@ class SemanticChunker:
             max_chunk_size: Maximum tokens per chunk
             min_chunk_size: Minimum tokens per chunk
         """
+        if max_chunk_size <= 0:
+            raise ValueError("max_chunk_size must be greater than zero")
         self.max_chunk_size = max_chunk_size
         self.min_chunk_size = min_chunk_size
         
@@ -125,15 +127,15 @@ class SemanticChunker:
         chunk_index = 0
         
         for section_text, section_name in sections:
+            # Filter small sections, but retain short tails of larger sections.
+            if len(section_text.split()) < 20:
+                continue
+
             # Further split large sections
             section_chunks = self._split_section(section_text)
             
             for chunk_text in section_chunks:
                 token_count = len(chunk_text.split())
-                
-                # Skip very small chunks
-                if token_count < 20:
-                    continue
                 
                 chunks.append(Chunk(
                     text=chunk_text,
@@ -196,7 +198,23 @@ class SemanticChunker:
         sentences = re.split(r'(?<=[.!?])\s+', text)
         
         for sentence in sentences:
-            sentence_tokens = len(sentence.split())
+            tokens = sentence.split()
+            sentence_tokens = len(tokens)
+
+            # A sentence can itself exceed the limit (for example, a table
+            # extracted without punctuation). Split it at token boundaries.
+            if sentence_tokens > self.max_chunk_size:
+                if current_chunk:
+                    chunks.append(' '.join(current_chunk))
+                    current_chunk = []
+                    current_size = 0
+                for start in range(0, sentence_tokens, self.max_chunk_size):
+                    piece = tokens[start:start + self.max_chunk_size]
+                    if start + self.max_chunk_size < sentence_tokens:
+                        chunks.append(' '.join(piece))
+                    else:
+                        sentence = ' '.join(piece)
+                        sentence_tokens = len(piece)
             
             if current_size + sentence_tokens > self.max_chunk_size and current_chunk:
                 # Save current chunk

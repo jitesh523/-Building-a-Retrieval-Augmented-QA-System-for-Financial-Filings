@@ -1,7 +1,7 @@
-"""Regression tests for fixed-size document chunking."""
+"""Regression tests for document chunking."""
 import unittest
 
-from src.data.chunker import DocumentChunker, FixedSizeChunker
+from src.data.chunker import DocumentChunker, FixedSizeChunker, SemanticChunker
 
 
 class FixedSizeChunkerTests(unittest.TestCase):
@@ -55,6 +55,50 @@ class FixedSizeChunkerTests(unittest.TestCase):
             [tokens[:500], tokens[400:900], tokens[800:]],
         )
         self.assertEqual(chunker.chunk(' \n\t'), [])
+
+
+class SemanticChunkerTests(unittest.TestCase):
+    def test_long_sentences_respect_limit_without_losing_tokens(self):
+        for count in (80, 81, 105):
+            with self.subTest(count=count):
+                tokens = [f'word{i}' for i in range(count)]
+                chunks = SemanticChunker(max_chunk_size=40).chunk(
+                    'ITEM 1. Business\n' + ' '.join(tokens), page_number=7
+                )
+                self.assertEqual(
+                    [token for chunk in chunks for token in chunk.text.split()],
+                    tokens,
+                )
+                self.assertTrue(all(0 < c.token_count <= 40 for c in chunks))
+                self.assertEqual([c.index for c in chunks], list(range(len(chunks))))
+                self.assertTrue(all(c.page_number == 7 for c in chunks))
+                self.assertTrue(all(c.section == 'ITEM 1. Business' for c in chunks))
+
+    def test_long_sentence_between_normal_sentences_preserves_order(self):
+        text = ' '.join(['before'] * 25) + '. '
+        text += ' '.join(['long'] * 81) + '! '
+        text += ' '.join(['after'] * 25) + '?'
+        chunks = SemanticChunker(max_chunk_size=40).chunk(text)
+        self.assertEqual([c.token_count for c in chunks], [25, 40, 40, 26])
+        self.assertEqual(' '.join(c.text for c in chunks).split(), text.split())
+
+    def test_normal_sentences_still_group_together(self):
+        sentence = ' '.join(['word'] * 20) + '.'
+        chunks = SemanticChunker(max_chunk_size=40).chunk(' '.join([sentence] * 3))
+        self.assertEqual([c.token_count for c in chunks], [40, 20])
+        self.assertEqual(chunks[0].text, ' '.join([sentence] * 2))
+
+    def test_small_sections_and_empty_input_still_filtered(self):
+        chunker = SemanticChunker(max_chunk_size=40)
+        for text in ('', ' \n\t', 'A small section.'):
+            with self.subTest(text=text):
+                self.assertEqual(chunker.chunk(text), [])
+
+    def test_rejects_nonpositive_maximum(self):
+        for maximum in (0, -1):
+            with self.subTest(maximum=maximum):
+                with self.assertRaisesRegex(ValueError, 'max_chunk_size'):
+                    DocumentChunker(strategy='semantic', max_chunk_size=maximum)
 
 
 if __name__ == '__main__':
